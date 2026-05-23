@@ -1,0 +1,585 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>วิปัสสนากรรมฐาน — ระบบบันทึกเวลา</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&family=Cinzel+Decorative:wght@400;700&display=swap" rel="stylesheet" />
+<style>
+:root {
+  --ink:        #0d1f2d;
+  --ink-deep:   #070f16;
+  --jade:       #1a4a3a;
+  --jade-mid:   #2a6b55;
+  --jade-light: #3d9970;
+  --gold:       #c9a84c;
+  --gold-light: #e8c876;
+  --gold-pale:  #f5e6b2;
+  --cream:      #fdf6e3;
+  --muted:      #8fa8a0;
+  --danger:     #c0392b;
+  --danger-bg:  #2c1210;
+  --success:    #27ae60;
+  --success-bg: #0d2418;
+  --card-bg:    rgba(26,74,58,0.35);
+  --card-border:rgba(201,168,76,0.2);
+  --glow:       0 0 40px rgba(201,168,76,0.12);
+}
+* { box-sizing:border-box; margin:0; padding:0; }
+body { font-family:'Sarabun',sans-serif; background:var(--ink-deep); color:var(--cream); min-height:100vh; }
+body::before {
+  content:''; position:fixed; inset:0; z-index:0; pointer-events:none;
+  background: radial-gradient(ellipse 80% 60% at 20% 10%,rgba(26,74,58,.45) 0%,transparent 60%),
+              radial-gradient(ellipse 60% 80% at 80% 90%,rgba(13,31,45,.8) 0%,transparent 70%);
+}
+body::after {
+  content:''; position:fixed; inset:0; z-index:0; pointer-events:none;
+  background-image:url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23c9a84c' fill-opacity='0.03'%3E%3Cpath d='M30 5C20 15 15 25 30 30C45 25 40 15 30 5ZM30 55C20 45 15 35 30 30C45 35 40 45 30 55ZM5 30C15 20 25 15 30 30C25 45 15 40 5 30ZM55 30C45 20 35 15 30 30C35 45 45 40 55 30Z'/%3E%3C/g%3E%3C/svg%3E");
+}
+.app { position:relative; z-index:1; min-height:100vh; display:flex; flex-direction:column; }
+
+/* LOGIN */
+#loginPage { display:flex; align-items:center; justify-content:center; min-height:100vh; padding:2rem; }
+.login-box {
+  background:var(--card-bg); border:1px solid var(--card-border); border-radius:20px;
+  padding:3rem 2.5rem; width:100%; max-width:420px;
+  backdrop-filter:blur(12px); box-shadow:var(--glow),0 20px 60px rgba(0,0,0,.5);
+  animation:fadeUp .6s ease both;
+}
+.login-logo { text-align:center; margin-bottom:2rem; }
+.lotus-icon { font-size:3rem; display:block; margin-bottom:.75rem; animation:float 3s ease-in-out infinite; }
+@keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-6px)} }
+.login-logo h1 { font-family:'Cinzel Decorative',serif; font-size:1.1rem; color:var(--gold); letter-spacing:.05em; line-height:1.4; }
+.login-logo p  { font-size:.85rem; color:var(--muted); margin-top:.3rem; }
+.form-group { margin-bottom:1.2rem; }
+.form-group label { display:block; font-size:.82rem; color:var(--gold-light); letter-spacing:.06em; margin-bottom:.4rem; text-transform:uppercase; }
+.form-group input {
+  width:100%; background:rgba(7,15,22,.6); border:1px solid rgba(201,168,76,.25); border-radius:10px;
+  color:var(--cream); font-family:'Sarabun',sans-serif; font-size:1rem; padding:.75rem 1rem; outline:none;
+  transition:border-color .2s,box-shadow .2s;
+}
+.form-group input:focus { border-color:var(--gold); box-shadow:0 0 0 3px rgba(201,168,76,.15); }
+.btn-primary {
+  width:100%; background:linear-gradient(135deg,var(--jade-mid),var(--jade));
+  border:1px solid var(--gold); border-radius:10px; color:var(--gold-light);
+  font-family:'Sarabun',sans-serif; font-size:1rem; font-weight:600; padding:.9rem;
+  cursor:pointer; letter-spacing:.04em; transition:all .2s; margin-top:.5rem;
+}
+.btn-primary:hover { background:linear-gradient(135deg,var(--jade-light),var(--jade-mid)); box-shadow:0 0 20px rgba(201,168,76,.25); transform:translateY(-1px); }
+.login-error { background:var(--danger-bg); border:1px solid var(--danger); border-radius:8px; color:#e74c3c; font-size:.9rem; padding:.6rem 1rem; margin-top:.8rem; display:none; }
+
+/* NAVBAR */
+#mainApp { display:none; flex-direction:column; min-height:100vh; }
+.navbar {
+  display:flex; align-items:center; justify-content:space-between; padding:1rem 2rem;
+  background:rgba(7,15,22,.7); border-bottom:1px solid var(--card-border);
+  backdrop-filter:blur(10px); position:sticky; top:0; z-index:100;
+}
+.nav-brand { display:flex; align-items:center; gap:.75rem; }
+.nav-brand span { font-size:1.5rem; }
+.nav-brand h2 { font-size:.95rem; color:var(--gold); font-weight:600; }
+.nav-brand p  { font-size:.75rem; color:var(--muted); margin-top:1px; }
+.nav-tabs { display:flex; gap:.3rem; }
+.nav-tab {
+  background:none; border:1px solid transparent; border-radius:8px; color:var(--muted);
+  cursor:pointer; font-family:'Sarabun',sans-serif; font-size:.9rem; padding:.5rem 1.2rem; transition:all .2s;
+}
+.nav-tab:hover  { color:var(--cream); background:rgba(201,168,76,.08); }
+.nav-tab.active { color:var(--gold-light); border-color:var(--card-border); background:rgba(26,74,58,.4); }
+.btn-logout {
+  background:none; border:1px solid rgba(192,57,43,.4); border-radius:8px; color:#e57373;
+  cursor:pointer; font-family:'Sarabun',sans-serif; font-size:.85rem; padding:.45rem .9rem; transition:all .2s;
+}
+.btn-logout:hover { background:var(--danger-bg); border-color:var(--danger); }
+
+/* PAGES */
+.page { display:none; padding:2rem; max-width:900px; margin:0 auto; width:100%; }
+.page.active { display:block; animation:fadeUp .4s ease both; }
+@keyframes fadeUp { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:translateY(0)} }
+
+/* CARD */
+.card { background:var(--card-bg); border:1px solid var(--card-border); border-radius:16px; padding:1.5rem; backdrop-filter:blur(8px); box-shadow:var(--glow); margin-bottom:1.5rem; }
+.card-title { font-size:.75rem; color:var(--gold); text-transform:uppercase; letter-spacing:.1em; margin-bottom:1rem; }
+
+/* SCAN CONTROLS */
+.scan-controls { display:grid; grid-template-columns:1fr 1fr; gap:1rem; margin-bottom:1.2rem; }
+.control-label { font-size:.75rem; color:var(--gold); text-transform:uppercase; letter-spacing:.08em; margin-bottom:.5rem; }
+.btn-group { display:flex; gap:.4rem; flex-wrap:wrap; }
+.btn-period,.btn-type {
+  flex:1; background:rgba(7,15,22,.5); border:1px solid rgba(201,168,76,.2); border-radius:8px;
+  color:var(--muted); cursor:pointer; font-family:'Sarabun',sans-serif; font-size:.85rem;
+  padding:.5rem .3rem; text-align:center; transition:all .2s; min-width:60px;
+}
+.btn-period:hover,.btn-type:hover { color:var(--cream); border-color:rgba(201,168,76,.4); }
+.btn-period.active { background:rgba(26,74,58,.7); border-color:var(--jade-light); color:#7dcea0; font-weight:600; }
+.btn-type.active-in  { background:rgba(13,36,24,.8); border-color:var(--success); color:#58d68d; font-weight:600; }
+.btn-type.active-out { background:rgba(44,18,16,.8); border-color:var(--danger);  color:#e57373; font-weight:600; }
+.period-hint { font-size:.75rem; color:var(--muted); margin-top:.4rem; }
+
+.date-row { display:flex; align-items:center; gap:1rem; margin-bottom:1.2rem; }
+.date-row input[type="date"] {
+  background:rgba(7,15,22,.6); border:1px solid rgba(201,168,76,.25); border-radius:8px;
+  color:var(--cream); font-family:'Sarabun',sans-serif; font-size:.95rem; padding:.5rem .8rem;
+  outline:none; flex:1; color-scheme:dark;
+}
+
+.scan-input-wrap { position:relative; }
+.scan-input-wrap input {
+  width:100%; background:rgba(7,15,22,.7); border:2px solid rgba(201,168,76,.3); border-radius:12px;
+  color:var(--gold-pale); font-family:'Sarabun',sans-serif; font-size:1.4rem; font-weight:600;
+  letter-spacing:.1em; outline:none; padding:1rem 1.2rem 1rem 3.5rem; transition:all .2s;
+}
+.scan-input-wrap input:focus { border-color:var(--gold); box-shadow:0 0 0 4px rgba(201,168,76,.12); }
+.scan-icon { position:absolute; left:1rem; top:50%; transform:translateY(-50%); font-size:1.5rem; pointer-events:none; }
+.scan-hint { font-size:.8rem; color:var(--muted); margin-top:.5rem; text-align:center; }
+
+.result-card { border-radius:12px; padding:1.2rem 1.5rem; display:none; animation:fadeUp .3s ease both; margin-bottom:1.5rem; }
+.result-card.success { background:var(--success-bg); border:1px solid var(--success); display:block; }
+.result-card.error   { background:var(--danger-bg);  border:1px solid var(--danger);  display:block; }
+.result-card.info    { background:rgba(26,74,58,.4);  border:1px solid var(--card-border); display:block; }
+.result-name { font-size:1.3rem; font-weight:700; color:var(--cream); }
+.result-meta { font-size:.85rem; color:var(--muted); margin-top:.3rem; display:flex; gap:1rem; flex-wrap:wrap; }
+.result-time { font-size:1rem; color:var(--gold-light); margin-top:.5rem; font-weight:600; }
+.result-msg  { font-size:1rem; color:#e57373; }
+
+.stats-bar { display:grid; grid-template-columns:repeat(3,1fr); gap:1rem; margin-bottom:1.5rem; }
+.stat-item { background:var(--card-bg); border:1px solid var(--card-border); border-radius:12px; padding:1rem; text-align:center; backdrop-filter:blur(6px); }
+.stat-value { font-size:2rem; font-weight:700; color:var(--gold-light); line-height:1; }
+.stat-label { font-size:.75rem; color:var(--muted); margin-top:.3rem; text-transform:uppercase; letter-spacing:.06em; }
+
+.scan-log { list-style:none; max-height:280px; overflow-y:auto; }
+.scan-log-item { display:flex; align-items:center; gap:.75rem; padding:.65rem 0; border-bottom:1px solid rgba(201,168,76,.08); animation:fadeUp .25s ease both; }
+.scan-log-item:last-child { border-bottom:none; }
+.scan-log-badge { width:32px; height:32px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:.8rem; flex-shrink:0; }
+.badge-in  { background:rgba(39,174,96,.2); color:#58d68d; }
+.badge-out { background:rgba(192,57,43,.2); color:#e57373; }
+.scan-log-name { font-size:.9rem; flex:1; }
+.scan-log-time { font-size:.8rem; color:var(--muted); }
+
+/* DASHBOARD */
+.search-wrap { position:relative; margin-bottom:1.2rem; }
+.search-wrap input {
+  width:100%; background:rgba(7,15,22,.6); border:1px solid rgba(201,168,76,.25); border-radius:10px;
+  color:var(--cream); font-family:'Sarabun',sans-serif; font-size:.95rem; outline:none;
+  padding:.7rem 1rem .7rem 2.8rem; transition:border-color .2s;
+}
+.search-wrap input:focus { border-color:var(--gold); }
+.search-icon { position:absolute; left:.9rem; top:50%; transform:translateY(-50%); color:var(--muted); }
+.summary-table { width:100%; border-collapse:collapse; font-size:.9rem; }
+.summary-table th { background:rgba(26,74,58,.5); color:var(--gold); font-size:.75rem; letter-spacing:.08em; padding:.75rem 1rem; text-align:left; text-transform:uppercase; border-bottom:1px solid var(--card-border); }
+.summary-table td { padding:.7rem 1rem; border-bottom:1px solid rgba(201,168,76,.06); vertical-align:middle; }
+.summary-table tr:hover td { background:rgba(201,168,76,.04); }
+.hours-bar-wrap { display:flex; align-items:center; gap:.75rem; }
+.hours-bar { flex:1; height:6px; background:rgba(255,255,255,.08); border-radius:3px; overflow:hidden; }
+.hours-bar-fill { height:100%; background:linear-gradient(90deg,var(--jade-light),var(--gold)); border-radius:3px; }
+.hours-val { font-weight:600; color:var(--gold-light); min-width:50px; text-align:right; }
+.rank-badge { display:inline-block; width:26px; height:26px; border-radius:50%; font-size:.75rem; font-weight:700; line-height:26px; text-align:center; }
+.rank-1 { background:rgba(201,168,76,.25); color:var(--gold); }
+.rank-2 { background:rgba(192,192,192,.15); color:#bdc3c7; }
+.rank-3 { background:rgba(176,90,39,.2); color:#e59866; }
+.rank-n { background:rgba(255,255,255,.06); color:var(--muted); }
+.empty-state { text-align:center; padding:3rem 1rem; color:var(--muted); }
+.empty-state .empty-icon { font-size:3rem; margin-bottom:.75rem; display:block; }
+
+/* SETUP BANNER */
+.setup-card { background:rgba(44,18,16,.4); border:1px dashed rgba(201,168,76,.35); border-radius:12px; padding:1.2rem 1.5rem; margin-bottom:1.5rem; display:flex; align-items:flex-start; gap:.75rem; }
+.setup-card.hidden { display:none; }
+
+/* SPINNER */
+.spinner { display:inline-block; width:18px; height:18px; border:2px solid rgba(201,168,76,.2); border-top-color:var(--gold); border-radius:50%; animation:spin .7s linear infinite; vertical-align:middle; }
+@keyframes spin { to{transform:rotate(360deg)} }
+
+@media(max-width:600px){
+  .navbar{padding:.75rem 1rem;flex-wrap:wrap;gap:.5rem}
+  .nav-tabs{order:3;width:100%}
+  .page{padding:1rem}
+  .scan-controls{grid-template-columns:1fr}
+  .stats-bar{grid-template-columns:1fr 1fr}
+}
+::-webkit-scrollbar{width:5px}
+::-webkit-scrollbar-track{background:rgba(0,0,0,.2)}
+::-webkit-scrollbar-thumb{background:rgba(201,168,76,.3);border-radius:3px}
+</style>
+</head>
+<body>
+<div class="app">
+
+<!-- LOGIN -->
+<div id="loginPage">
+  <div class="login-box">
+    <div class="login-logo">
+      <span class="lotus-icon">🪷</span>
+      <h1>Vipassana<br>Attendance</h1>
+      <p>ระบบบันทึกเวลาวิปัสสนากรรมฐาน</p>
+    </div>
+    <div class="form-group">
+      <label>ชื่อผู้ใช้</label>
+      <input type="text" id="loginUser" placeholder="username" autocomplete="username" />
+    </div>
+    <div class="form-group">
+      <label>รหัสผ่าน</label>
+      <input type="password" id="loginPass" placeholder="password" autocomplete="current-password" />
+    </div>
+    <button class="btn-primary" onclick="login()">เข้าสู่ระบบ</button>
+    <div class="login-error" id="loginError">ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง</div>
+  </div>
+</div>
+
+<!-- MAIN APP -->
+<div id="mainApp">
+  <nav class="navbar">
+    <div class="nav-brand">
+      <span>🪷</span>
+      <div>
+        <h2>วิปัสสนากรรมฐาน</h2>
+        <p id="clockDisplay">—</p>
+      </div>
+    </div>
+    <div class="nav-tabs">
+      <button class="nav-tab active" onclick="showPage('scanPage',this)">🔍 สแกน</button>
+      <button class="nav-tab" onclick="showPage('dashPage',this)">📊 สรุปชั่วโมง</button>
+    </div>
+    <button class="btn-logout" onclick="logout()">ออกจากระบบ</button>
+  </nav>
+
+  <!-- SCAN PAGE -->
+  <div class="page active" id="scanPage">
+
+    <div class="setup-card" id="setupBanner">
+      <span style="font-size:1.3rem;flex-shrink:0">⚙️</span>
+      <div>
+        <div style="font-size:.85rem;color:var(--gold-light);font-weight:600;margin-bottom:.3rem">ยังไม่ได้ตั้งค่า GAS_URL</div>
+        <div style="font-size:.8rem;color:var(--muted)">แก้ตัวแปร <code style="color:var(--gold-pale);background:rgba(0,0,0,.3);padding:0 4px;border-radius:3px">GAS_URL</code> ด้านล่างสุดของ &lt;script&gt; ในไฟล์ index.html</div>
+      </div>
+    </div>
+
+    <div class="stats-bar">
+      <div class="stat-item"><div class="stat-value" id="statToday">—</div><div class="stat-label">สแกนวันนี้</div></div>
+      <div class="stat-item"><div class="stat-value" id="statStudents">—</div><div class="stat-label">นิสิตวันนี้</div></div>
+      <div class="stat-item"><div class="stat-value" id="statTotal">—</div><div class="stat-label">สแกนทั้งหมด</div></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">⚙️ ตั้งค่าการสแกน</div>
+      <div class="scan-controls">
+        <div>
+          <div class="control-label">ช่วงที่</div>
+          <div class="btn-group">
+            <button class="btn-period active" data-p="1" onclick="selectPeriod(1)">1</button>
+            <button class="btn-period" data-p="2" onclick="selectPeriod(2)">2</button>
+            <button class="btn-period" data-p="3" onclick="selectPeriod(3)">3</button>
+            <button class="btn-period" data-p="4" onclick="selectPeriod(4)">4</button>
+          </div>
+          <div class="period-hint" id="periodHint">05:00 – 06:30 น.</div>
+        </div>
+        <div>
+          <div class="control-label">ประเภท</div>
+          <div class="btn-group">
+            <button class="btn-type active-in"  id="btnIn"  onclick="selectType('in')">✅ เข้า</button>
+            <button class="btn-type"             id="btnOut" onclick="selectType('out')">🚪 ออก</button>
+          </div>
+        </div>
+      </div>
+      <div class="date-row">
+        <div class="control-label" style="white-space:nowrap">📅 วันที่</div>
+        <input type="date" id="scanDate" />
+      </div>
+      <div class="scan-input-wrap">
+        <span class="scan-icon" id="scanIconEl">📷</span>
+        <input type="text" id="barcodeInput"
+               placeholder="สแกนหรือพิมพ์รหัสนิสิต..."
+               inputmode="numeric" autocomplete="off"
+               onkeydown="handleBarcodeKey(event)" />
+      </div>
+      <div class="scan-hint">กด Enter หรือสแกนบาร์โค้ดโดยตรง</div>
+    </div>
+
+    <div id="resultCard" class="result-card"></div>
+
+    <div class="card">
+      <div class="card-title">📋 ประวัติการสแกนล่าสุด</div>
+      <ul class="scan-log" id="scanLog">
+        <li style="color:var(--muted);font-size:.85rem;padding:1rem 0;text-align:center">ยังไม่มีข้อมูล</li>
+      </ul>
+    </div>
+  </div><!-- /scanPage -->
+
+  <!-- DASHBOARD PAGE -->
+  <div class="page" id="dashPage">
+    <div class="card">
+      <div class="card-title">📊 สรุปชั่วโมงนิสิต</div>
+      <div class="search-wrap">
+        <span class="search-icon">🔍</span>
+        <input type="text" id="searchInput" placeholder="ค้นหาด้วยรหัสหรือชื่อ..." oninput="filterSummary()" />
+      </div>
+      <div id="summaryTableWrap">
+        <div class="empty-state"><span class="empty-icon">🪷</span><p>กด "รีเฟรช" เพื่อโหลดข้อมูล</p></div>
+      </div>
+      <div style="text-align:right;margin-top:1rem">
+        <button class="btn-primary" style="width:auto;padding:.6rem 1.5rem" onclick="loadSummary()">🔄 รีเฟรช</button>
+      </div>
+    </div>
+  </div>
+</div><!-- /mainApp -->
+</div><!-- /app -->
+
+<script>
+// ============================================================
+// ⚙️  วาง GAS Web App URL ตรงนี้ (Deploy จาก Apps Script)
+// ============================================================
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbwU2MTUL970gJN-N0lQ_DtmOBspsmPUv6JVYWyvoMvsbscL3bG0OUfivVfBGv92nKgP/exec';
+// ตัวอย่าง: 'https://script.google.com/macros/s/AKfyc.../exec'
+// ============================================================
+
+const PERIODS = { 1:'05:00 – 06:30 น.', 2:'08:30 – 12:00 น.', 3:'13:00 – 16:00 น.', 4:'18:00 – 22:00 น.' };
+let currentPeriod = 1;
+let currentType   = 'in';
+let scanLog       = [];
+let summaryData   = [];
+let scanning      = false;
+
+// ===== INIT =====
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('scanDate').value = new Date().toISOString().split('T')[0];
+  updateClock();
+  setInterval(updateClock, 1000);
+  checkSetup();
+  document.getElementById('loginPass').addEventListener('keydown', e => { if(e.key==='Enter') login(); });
+  document.getElementById('loginUser').addEventListener('keydown', e => { if(e.key==='Enter') document.getElementById('loginPass').focus(); });
+});
+
+function checkSetup() {
+  const isSet = GAS_URL && GAS_URL !== 'https://script.google.com/macros/s/AKfycbxi5WytnQqdjSJdkJ-1A0yQOqw3I8VNmcnsesbrsFE_5v50z5nnu7fq8qn9Vh80gp5f/exec';
+  document.getElementById('setupBanner').classList.toggle('hidden', isSet);
+  if (isSet) loadStats();
+}
+
+function updateClock() {
+  const now = new Date();
+  document.getElementById('clockDisplay').textContent =
+    now.toLocaleDateString('th-TH',{weekday:'short',year:'numeric',month:'short',day:'numeric'}) + ' ' +
+    now.toLocaleTimeString('th-TH');
+}
+
+// ===== AUTH =====
+function login() {
+  const u = document.getElementById('loginUser').value.trim();
+  const p = document.getElementById('loginPass').value;
+  if (u === 'admin' && p === 'mcu1234') {
+    document.getElementById('loginPage').style.display = 'none';
+    document.getElementById('mainApp').style.display   = 'flex';
+    document.getElementById('loginError').style.display = 'none';
+    setTimeout(() => document.getElementById('barcodeInput').focus(), 100);
+    checkSetup();
+  } else {
+    document.getElementById('loginError').style.display = 'block';
+    document.getElementById('loginPass').value = '';
+  }
+}
+function logout() {
+  if (!confirm('ต้องการออกจากระบบ?')) return;
+  document.getElementById('mainApp').style.display   = 'none';
+  document.getElementById('loginPage').style.display = 'flex';
+  document.getElementById('loginUser').value = '';
+  document.getElementById('loginPass').value = '';
+}
+
+// ===== PAGE NAV =====
+function showPage(id, btn) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(b => b.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  btn.classList.add('active');
+  if (id === 'scanPage') setTimeout(() => document.getElementById('barcodeInput').focus(), 100);
+  if (id === 'dashPage') loadSummary();
+}
+
+// ===== CONTROLS =====
+function selectPeriod(p) {
+  currentPeriod = p;
+  document.querySelectorAll('.btn-period').forEach(b => b.classList.remove('active'));
+  document.querySelector(`.btn-period[data-p="${p}"]`).classList.add('active');
+  document.getElementById('periodHint').textContent = PERIODS[p];
+}
+function selectType(t) {
+  currentType = t;
+  document.getElementById('btnIn').className  = 'btn-type' + (t==='in'  ? ' active-in'  : '');
+  document.getElementById('btnOut').className = 'btn-type' + (t==='out' ? ' active-out' : '');
+  document.getElementById('scanIconEl').textContent = t === 'in' ? '📷' : '🚪';
+}
+
+// ===== BARCODE =====
+function handleBarcodeKey(e) {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    const barcode = e.target.value.trim();
+    if (!barcode) return;
+    e.target.value = '';
+    processScan(barcode);
+  }
+}
+
+async function processScan(barcode) {
+  if (scanning) return;
+  scanning = true;
+
+  const dateVal = document.getElementById('scanDate').value;
+  if (!dateVal) { showResult('error', null, 'กรุณาเลือกวันที่ก่อน'); scanning=false; return; }
+
+  if (!GAS_URL || GAS_URL === 'YOUR_GAS_WEB_APP_URL_HERE') {
+    showResult('error', null, '⚙️ กรุณาตั้งค่า GAS_URL ก่อนใช้งาน');
+    scanning = false; return;
+  }
+
+  const [y,m,d] = dateVal.split('-');
+  const dateSheet = `${d}/${m}/${y}`;
+
+  showResult('info', null, `<span class="spinner"></span> กำลังค้นหา ${barcode}...`);
+
+  try {
+    // Step 1: Find student
+    const findRes = await gasCall({ action:'findStudent', barcode });
+    if (!findRes.success) {
+      showResult('error', null, `❌ ${findRes.message}`);
+      addLog(barcode, '—', currentType, false);
+      scanning = false; return;
+    }
+
+    const s = findRes.student;
+    showResult('info', s, `<span class="spinner"></span> กำลังบันทึก...`);
+
+    // Step 2: Scan in/out
+    const action = currentType === 'in' ? 'scanIn' : 'scanOut';
+    const scanRes = await gasCall({
+      action, barcode, period: String(currentPeriod), date: dateSheet, name: s.name
+    });
+
+    if (scanRes.success) {
+      const label   = currentType==='in' ? '✅ บันทึกเข้า' : '🚪 บันทึกออก';
+      const hoursStr= scanRes.hours != null ? ` · ${scanRes.hours} ชม.` : '';
+      showResult('success', s, `${label} — ช่วงที่ ${currentPeriod} · ${scanRes.time}${hoursStr}`);
+      addLog(s.name, s.studentId, currentType, true, scanRes.time);
+      loadStats();
+    } else {
+      showResult('error', s, `⚠️ ${scanRes.message}`);
+      addLog(s.name, s.studentId, currentType, false);
+    }
+
+  } catch (err) {
+    showResult('error', null, `🔴 เชื่อมต่อ GAS ไม่ได้: ${err.message}`);
+  }
+
+  scanning = false;
+  setTimeout(() => document.getElementById('barcodeInput').focus(), 100);
+}
+
+// ===== GAS API — GET เท่านั้น (แก้ปัญหา CORS) =====
+async function gasCall(params) {
+  const qs  = new URLSearchParams(params).toString();
+  const url = `${GAS_URL}?${qs}`;
+  const res = await fetch(url, {
+    method:   'GET',
+    redirect: 'follow',
+    cache:    'no-store'
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json();
+}
+
+// ===== RESULT CARD =====
+function showResult(type, student, msg) {
+  const card = document.getElementById('resultCard');
+  card.className = `result-card ${type}`;
+  if (type === 'info' && !student) {
+    card.innerHTML = `<div style="color:var(--muted)">${msg}</div>`;
+    return;
+  }
+  if (student) {
+    card.innerHTML = `
+      <div class="result-name">${student.name}</div>
+      <div class="result-meta">
+        <span>🆔 ${student.studentId}</span>
+        <span>📚 ${student.major}</span>
+        <span>📅 ${student.year} ${student.section}</span>
+      </div>
+      <div class="result-time">${msg}</div>`;
+  } else {
+    card.innerHTML = `<div class="result-msg">${msg}</div>`;
+  }
+}
+
+// ===== SCAN LOG =====
+function addLog(name, id, type, ok, time) {
+  scanLog.unshift({ name, id, type, ok, time: time || new Date().toLocaleTimeString('th-TH') });
+  if (scanLog.length > 50) scanLog.pop();
+  const ul = document.getElementById('scanLog');
+  ul.innerHTML = scanLog.map(s => `
+    <li class="scan-log-item">
+      <div class="scan-log-badge ${s.type==='in' ? 'badge-in' : 'badge-out'}">${s.type==='in' ? '↑' : '↓'}</div>
+      <div class="scan-log-name">
+        <div>${s.name} ${s.ok ? '' : '<span style="color:var(--danger);font-size:.75rem">ล้มเหลว</span>'}</div>
+        <div style="font-size:.75rem;color:var(--muted)">${s.id}</div>
+      </div>
+      <div class="scan-log-time">${s.time}</div>
+    </li>`).join('');
+}
+
+// ===== STATS =====
+async function loadStats() {
+  if (!GAS_URL || GAS_URL === 'YOUR_GAS_WEB_APP_URL_HERE') return;
+  try {
+    const res = await gasCall({ action:'getStats' });
+    if (res.success) {
+      document.getElementById('statToday').textContent    = res.todayScans;
+      document.getElementById('statStudents').textContent = res.todayStudents;
+      document.getElementById('statTotal').textContent    = res.totalScans;
+    }
+  } catch (_) {}
+}
+
+// ===== SUMMARY =====
+async function loadSummary() {
+  const wrap = document.getElementById('summaryTableWrap');
+  wrap.innerHTML = `<div style="text-align:center;padding:2rem;color:var(--muted)"><span class="spinner"></span> กำลังโหลด...</div>`;
+  try {
+    const res = await gasCall({ action:'getSummary' });
+    if (!res.success) throw new Error(res.message);
+    summaryData = res.data;
+    renderSummary(summaryData);
+  } catch (err) {
+    wrap.innerHTML = `<div class="empty-state"><span class="empty-icon">🔴</span><p>${err.message}</p></div>`;
+  }
+}
+function filterSummary() {
+  const kw = document.getElementById('searchInput').value.trim().toLowerCase();
+  renderSummary(summaryData.filter(r =>
+    String(r.barcode).toLowerCase().includes(kw) || String(r.name).toLowerCase().includes(kw)));
+}
+function renderSummary(data) {
+  const wrap = document.getElementById('summaryTableWrap');
+  if (!data.length) { wrap.innerHTML = `<div class="empty-state"><span class="empty-icon">🪷</span><p>ไม่พบข้อมูล</p></div>`; return; }
+  const maxH = Math.max(...data.map(r => r.totalHours), 1);
+  wrap.innerHTML = `
+    <table class="summary-table">
+      <thead><tr><th>#</th><th>รหัส</th><th>ชื่อ-นามสกุล</th><th>ชั่วโมงรวม</th></tr></thead>
+      <tbody>
+        ${data.map((r,i) => {
+          const rank = i+1;
+          const cls  = rank===1?'rank-1':rank===2?'rank-2':rank===3?'rank-3':'rank-n';
+          const pct  = Math.round(r.totalHours/maxH*100);
+          return `<tr>
+            <td><span class="rank-badge ${cls}">${rank}</span></td>
+            <td style="color:var(--muted);font-size:.85rem">${r.barcode}</td>
+            <td>${r.name}</td>
+            <td><div class="hours-bar-wrap"><div class="hours-bar"><div class="hours-bar-fill" style="width:${pct}%"></div></div><div class="hours-val">${r.totalHours}</div></div></td>
+          </tr>`;
+        }).join('')}
+      </tbody>
+    </table>
+    <div style="font-size:.8rem;color:var(--muted);margin-top:.75rem;text-align:right">รวม ${data.length} คน</div>`;
+}
+</script>
+</body>
+</html>
